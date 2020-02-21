@@ -4,16 +4,8 @@ import os
 import shutil
 import sys
 
-def pipeName(s, r):
-    return './pipes/{0}-{1}'.format(s, r)
+from utils import pipeName, sendMessage, receiveMessage
 
-def sendMessage(sender, receiver, message):
-    with open(pipeName(sender, receiver), 'a') as pipe:
-        pipe.writeline(message)
-
-def receiveMessage(sender, receiver):
-    with open(pipeName(receiver, sender), 'r') as pipe:
-        return pipe.readline(message)
 
 class Node:
     id = -1
