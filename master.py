@@ -74,9 +74,11 @@ class Node:
             self.balance = self.balance + int(message)
 
 
-def _dummyChild_(money):
-    print(money)
+def _dummyChild_(node_id, money):
+    print('Created node with id {0}, money {1}'.format(node_id, money))
     while True:
+        print(receiveMessage(node_id, 'master'))
+        print('/read')
         pass
 
 def _dummyObserver_():
@@ -123,7 +125,7 @@ class Master:
             os.mkfifo(pipeName(neighbor_id, node_id))
 
         # Start process
-        p = Process(target=_dummyChild_, args=(money,))
+        p = Process(target=_dummyChild_, args=(node_id, money))
         p.start()
         self.nodes[id] = p
 
