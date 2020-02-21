@@ -4,6 +4,37 @@ import os
 import shutil
 import sys
 
+def pipeName(s, r):
+    return './pipes/node{0}-node{1}'.format(s, r)
+
+def sendMessage(sender, receiver, message):
+    with open(pipeName(sender, receiver), 'a') as pipe:
+        pipe.write(message, '\n')
+
+class Node:
+    id = -1
+    balance = 0
+
+    def send(self, receiver, val):
+        print("send: sender={0} receiver={1} val={2}\n".format(id, receiver, val))
+        # error check
+        if val > balance:
+            print("ERR_SEND")
+            print("not enough money. current balance: {}".format(self.balance))
+            return
+        else:
+            # send the money
+            # append sent val to channel
+            sendMessage(self.id, receiver, str(val))
+            self.balance = self.balance - val
+
+        # send a ack to master
+        sendMessage(self.id, 'master', 'ack')
+
+    def receive(self, sender=-1):
+        print("recieve: r={0} s={1}\n".format(id, sender))
+        
+
 def _dummyChild_(money):
     print(money)
     while True:
