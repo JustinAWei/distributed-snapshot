@@ -136,22 +136,33 @@ class Master:
         self.nodes[id] = p
 
     def send(self, send_id, recv_id, val):
-        return
+        msg = 'Send {} {}'.format(recv_id, val)
+        sendMessage('master', send_id, msg)
+        # TODO block
 
-    def receive(self, recv_id, send_id=None):
-        return
+    def receive(self, recv_id, send_id=''):
+        msg = 'Receive {}'.format(send_id)
+        sendMessage('master', recv_id, msg)
+        # TODO block
 
     def receiveAll(self):
+        # TODO implement
         return
 
-    def beginSnapshot(self, id):
-        return
+    def beginSnapshot(self, node_id):
+        msg = 'BeginSnapshot {}'.format(node_id)
+        sendMessage('master', 'observer', msg)
+        # TODO block
 
     def collectState(self):
-        return
+        msg = 'CollectState'
+        sendMessage('master', 'observer', msg)
+        # TODO block
 
     def printSnapshot(self):
-        return
+        msg = 'PrintSnapshot'
+        sendMessage('master', 'observer', msg)
+        # TODO block
 
 # startMaster()
 # killAll()
@@ -185,7 +196,7 @@ def run(master):
             master.send(send_id, recv_id, money)
         elif cmd == 'Receive':
             recv_id = args[1]
-            send_id = args[2] if len(args) > 2 else None
+            send_id = args[2] if len(args) > 2 else ''
             master.receive(recv_id, send_id)
         elif cmd == 'ReceiveAll':
             master.receiveAll()
