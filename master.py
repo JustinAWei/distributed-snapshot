@@ -5,7 +5,7 @@ import shutil
 import sys
 
 def pipeName(s, r):
-    return './pipes/node{0}-node{1}'.format(s, r)
+    return './pipes/{0}-{1}'.format(s, r)
 
 def sendMessage(sender, receiver, message):
     with open(pipeName(sender, receiver), 'a') as pipe:
@@ -103,8 +103,8 @@ class Master:
         os.mkdir('./pipes')
 
         # Create pipe between master and observer
-        os.mkfifo('./pipes/master-observer')
-        os.mkfifo('./pipes/observer-master')
+        os.mkfifo(pipeName('master', 'observer'))
+        os.mkfifo(pipeName('observer', 'master'))
 
         # Start observer
         self.observer = Process(target=_dummyObserver_)
@@ -119,16 +119,16 @@ class Master:
 
     def createNode(self, node_id, money):
         # Create pipe between master and node
-        os.mkfifo('./pipes/master-node{0}'.format(id))
-        os.mkfifo('./pipes/node{0}-master'.format(id))
+        os.mkfifo(pipeName('master', node_id))
+        os.mkfifo(pipeName(node_id, 'master'))
 
         # Create pipe from observer to node
-        os.mkfifo('./pipes/observer-node{0}'.format(id))
+        os.mkfifo(pipeName('observer', node_id))
 
         # Create inter-node pipes
         for neighbor_id in range(node_id):
-            os.mkfifo('./pipes/node{0}-node{1}'.format(node_id, neighbor_id))
-            os.mkfifo('./pipes/node{0}-node{1}'.format(neighbor_id, node_id))
+            os.mkfifo(pipeName(node_id, neighbor_id))
+            os.mkfifo(pipeName(neighbor_id, node_id))
 
         # Start process
         p = Process(target=_dummyChild_, args=(money,))
