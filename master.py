@@ -9,7 +9,11 @@ def pipeName(s, r):
 
 def sendMessage(sender, receiver, message):
     with open(pipeName(sender, receiver), 'a') as pipe:
-        pipe.write(message, '\n')
+        pipe.writeline(message)
+
+def receiveMessage(sender, receiver):
+    with open(pipeName(receiver, sender), 'r') as pipe:
+        return pipe.readline(message)
 
 class Node:
     id = -1
@@ -33,7 +37,28 @@ class Node:
 
     def receive(self, sender=-1):
         print("recieve: r={0} s={1}\n".format(id, sender))
-        
+
+        # TODO: random sender
+        # if sender == -1:
+        #     sender = random.randint(1,101)
+
+        message = receiveMessage(sender, self.id)
+
+        # print message
+        print(message)
+
+        # ack master
+        sendMessage(self.id, 'master', 'ack')
+
+        # rid of newline
+        message = message[:-1]
+
+        # start computation
+        if message == "snapshot":
+            # TODO: snapshot
+            pass
+        else:
+            self.balance = self.balance + int(message)
 
 def _dummyChild_(money):
     print(money)
