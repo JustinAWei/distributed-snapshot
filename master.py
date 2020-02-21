@@ -1,54 +1,79 @@
 import fileinput
 from multiprocessing import Process
 import os
-
-nodes = dict()
+import shutil
+import sys
 
 def _dummyChild_(money):
     print(money)
     while True:
         pass
 
-def startMaster():
-    print("startMaster\n")
+def _dummyObserver_():
+    print("hi i'm observer")
+    while True:
+        pass
 
-def killAll():
-    print("killAll\n")
+class Master:
+    def __init__(self):
+        self.nodes = dict()
+        self.observer = None
 
-def createNode(id, money):
-    # Create pipe from master to node
-    os.mkfifo('./pipes/master-node{0}'.format(id))
+    def startMaster(self):
+        # Setup pipes
+        shutil.rmtree('./pipes', ignore_errors=True)
+        os.mkdir('./pipes')
 
-    # Create pipe from observer to node
-    os.mkfifo('./pipes/observer-node{0}'.format(id))
+        # Create pipe between master and observer
+        os.mkfifo('./pipes/master-observer')
+        os.mkfifo('./pipes/observer-master')
 
-    # Create inter-node pipes
-    for node_id in range(id):
-        os.mkfifo('./pipes/node{0}-node{1}'.format(id, node_id))
-        os.mkfifo('./pipes/node{0}-node{1}'.format(node_id, id))
+        # Start observer
+        self.observer = Process(target=_dummyObserver_)
+        self.observer.start()
 
-    # Start process
-    p = Process(target=_dummyChild_, args=(money,))
-    p.start()
-    nodes[id] = p
+    def killAll(self):
+        self.observer.terminate()
+        for node in self.nodes.values():
+            node.terminate()
+        shutil.rmtree('./pipes', ignore_errors=True)
+        sys.exit()
 
-def send(sender, receiver, val):
-    print("send: sender={0} receiver={1} val={2}\n".format(sender, receiver, val))
+    def createNode(self, id, money):
+        # Create pipe between master and node
+        os.mkfifo('./pipes/master-node{0}'.format(id))
+        os.mkfifo('./pipes/node{0}-master'.format(id))
 
-def receive(receiver, sender):
-    print("recieve: r={0} s={1}\n".format(receiver, sender))
+        # Create pipe from observer to node
+        os.mkfifo('./pipes/observer-node{0}'.format(id))
 
-def receiveAll():
-    print("recceiveAll\n")
+        # Create inter-node pipes
+        for node_id in range(id):
+            os.mkfifo('./pipes/node{0}-node{1}'.format(id, node_id))
+            os.mkfifo('./pipes/node{0}-node{1}'.format(node_id, id))
 
-def beginSnapshot(id):
-    print("beginSnapshot: id={0}\n".format(id))
+        # Start process
+        p = Process(target=_dummyChild_, args=(money,))
+        p.start()
+        self.nodes[id] = p
 
-def collectState():
-    print("collectState\n")
+    def send(self, sender, receiver, val):
+        print("send: sender={0} receiver={1} val={2}\n".format(sender, receiver, val))
 
-def printSnapshot():
-    print("printSnapshot\n")
+    def receive(self, receiver, sender):
+        print("recieve: r={0} s={1}\n".format(receiver, sender))
+
+    def receiveAll(self):
+        print("recceiveAll\n")
+
+    def beginSnapshot(self, id):
+        print("beginSnapshot: id={0}\n".format(id))
+
+    def collectState(self):
+        print("collectState\n")
+
+    def printSnapshot(self):
+        print("printSnapshot\n")
 
 # startMaster()
 # killAll()
@@ -60,18 +85,17 @@ def printSnapshot():
 # collectState()
 # printSnapshot()
 
-def main():
+def run(master):
     for line in fileinput.input():
         args = line.split()
         cmd = args[0]
 
         if cmd == 'StartMaster':
-            pass
+            master.startMaster()
         elif cmd == 'KillAll':
-            pass
+            master.killAll()
         elif cmd == 'CreateNode':
-            createNode(int(args[1]), int(args[2]))
-            pass
+            master.createNode(int(args[1]), int(args[2]))
         elif cmd == 'Send':
             pass
         elif cmd == 'Receive':
@@ -89,4 +113,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    master = Master()
+    run(master)
