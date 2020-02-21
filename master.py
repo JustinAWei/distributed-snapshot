@@ -39,7 +39,7 @@ class Master:
         shutil.rmtree('./pipes', ignore_errors=True)
         sys.exit()
 
-    def createNode(self, id, money):
+    def createNode(self, node_id, money):
         # Create pipe between master and node
         os.mkfifo('./pipes/master-node{0}'.format(id))
         os.mkfifo('./pipes/node{0}-master'.format(id))
@@ -48,32 +48,32 @@ class Master:
         os.mkfifo('./pipes/observer-node{0}'.format(id))
 
         # Create inter-node pipes
-        for node_id in range(id):
-            os.mkfifo('./pipes/node{0}-node{1}'.format(id, node_id))
-            os.mkfifo('./pipes/node{0}-node{1}'.format(node_id, id))
+        for neighbor_id in range(node_id):
+            os.mkfifo('./pipes/node{0}-node{1}'.format(node_id, neighbor_id))
+            os.mkfifo('./pipes/node{0}-node{1}'.format(neighbor_id, node_id))
 
         # Start process
         p = Process(target=_dummyChild_, args=(money,))
         p.start()
         self.nodes[id] = p
 
-    def send(self, sender, receiver, val):
-        print("send: sender={0} receiver={1} val={2}\n".format(sender, receiver, val))
+    def send(self, send_id, recv_id, val):
+        return
 
-    def receive(self, receiver, sender):
-        print("recieve: r={0} s={1}\n".format(receiver, sender))
+    def receive(self, recv_id, send_id=None):
+        return
 
     def receiveAll(self):
-        print("recceiveAll\n")
+        return
 
     def beginSnapshot(self, id):
-        print("beginSnapshot: id={0}\n".format(id))
+        return
 
     def collectState(self):
-        print("collectState\n")
+        return
 
     def printSnapshot(self):
-        print("printSnapshot\n")
+        return
 
 # startMaster()
 # killAll()
@@ -89,25 +89,35 @@ def run(master):
     for line in fileinput.input():
         args = line.split()
         cmd = args[0]
+        for idx in range(1, len(args)):
+            args[idx] = int(args[idx])
 
         if cmd == 'StartMaster':
             master.startMaster()
         elif cmd == 'KillAll':
             master.killAll()
         elif cmd == 'CreateNode':
-            master.createNode(int(args[1]), int(args[2]))
+            node_id = args[1]
+            money = args[2]
+            master.createNode(node_id, money)
         elif cmd == 'Send':
-            pass
+            send_id = args[1]
+            recv_id = args[2]
+            money = args[3]
+            master.send(send_id, recv_id, money)
         elif cmd == 'Receive':
-            pass
+            recv_id = args[1]
+            send_id = args[2] if len(args) > 2 else None
+            master.receive(recv_id, send_id)
         elif cmd == 'ReceiveAll':
-            pass
+            master.receiveAll()
         elif cmd == 'BeginSnapshot':
-            pass
+            node_id = args[1]
+            master.beginSnapshot(node_id)
         elif cmd == 'CollectState':
-            pass
+            master.collectState()
         elif cmd == 'PrintSnapshot':
-            pass
+            master.printSnapshot()
         else:
             raise ValueError('Command not supported: ' + line)
 
