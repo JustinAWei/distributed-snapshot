@@ -1,4 +1,13 @@
 import fileinput
+from multiprocessing import Process
+import os
+
+nodes = dict()
+
+def _dummyChild_(money):
+    print(money)
+    while True:
+        pass
 
 def startMaster():
     print("startMaster\n")
@@ -6,8 +15,22 @@ def startMaster():
 def killAll():
     print("killAll\n")
 
-def createNode(id, val):
-    print("createNode: id={0} val={1}\n".format(id, val))
+def createNode(id, money):
+    # Create pipe from master to node
+    os.mkfifo('./pipes/master-node{0}'.format(id))
+
+    # Create pipe from observer to node
+    os.mkfifo('./pipes/observer-node{0}'.format(id))
+
+    # Create inter-node pipes
+    for node_id in range(id):
+        os.mkfifo('./pipes/node{0}-node{1}'.format(id, node_id))
+        os.mkfifo('./pipes/node{0}-node{1}'.format(node_id, id))
+
+    # Start process
+    p = Process(target=_dummyChild_, args=(money,))
+    p.start()
+    nodes[id] = p
 
 def send(sender, receiver, val):
     print("send: sender={0} receiver={1} val={2}\n".format(sender, receiver, val))
@@ -47,6 +70,7 @@ def main():
         elif cmd == 'KillAll':
             pass
         elif cmd == 'CreateNode':
+            createNode(int(args[1]), int(args[2]))
             pass
         elif cmd == 'Send':
             pass
