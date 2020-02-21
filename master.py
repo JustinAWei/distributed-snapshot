@@ -19,6 +19,27 @@ class Node:
     id = -1
     balance = 0
 
+    def listen():
+        while(True):
+            message = receiveMessage('master', self.id)
+            
+            # rid of newline
+            message = message[:-1]
+            message = message.split(' ')
+            command = message[0]
+            if command == "Send":
+                _, receiver, val = message[1:]
+                self.send(receiver, int(val))
+            elif command == "Receive":
+                # only receiver is specified
+                if len(message[1:]) == 1:
+                    self.receive()
+                else:
+                    _, sender = message[1:]
+                    self.receive(sender)
+            elif command == "ReceiveAll":
+                pass
+
     def send(self, receiver, val):
         print("send: sender={0} receiver={1} val={2}\n".format(id, receiver, val))
         # error check
@@ -59,6 +80,7 @@ class Node:
             pass
         else:
             self.balance = self.balance + int(message)
+
 
 def _dummyChild_(money):
     print(money)
