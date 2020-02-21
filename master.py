@@ -77,14 +77,14 @@ class Node:
 def _dummyChild_(node_id, money):
     print('Created node with id {0}, money {1}'.format(node_id, money))
     while True:
-        print(receiveMessage(node_id, 'master'))
-        print('/read')
-        pass
+        print('DUMMY RECV: ' + receiveMessage('master', node_id))
+        sendMessage(node_id, 'master', 'Ack', nonblocking=True)
 
 def _dummyObserver_():
     print("hi i'm observer")
     while True:
-        pass
+        print('OBSERVER RECV: ' + receiveMessage('master', 'observer'))
+        sendMessage('observer', 'master', 'Ack', nonblocking=True)
 
 class Master:
     def __init__(self):
@@ -132,12 +132,18 @@ class Master:
     def send(self, send_id, recv_id, val):
         msg = 'Send {} {}'.format(recv_id, val)
         sendMessage('master', send_id, msg)
-        # TODO block
+
+        response = receiveMessage(send_id, 'master')
+        if (response != 'Ack'):
+            raise RuntimeError('Expected \'Ack\', received {}'.format(response))
 
     def receive(self, recv_id, send_id=''):
         msg = 'Receive {}'.format(send_id)
         sendMessage('master', recv_id, msg)
-        # TODO block
+
+        response = receiveMessage(recv_id, 'master')
+        if (response != 'Ack'):
+            raise RuntimeError('Expected \'Ack\', received {}'.format(response))
 
     def receiveAll(self):
         # TODO implement
@@ -146,17 +152,28 @@ class Master:
     def beginSnapshot(self, node_id):
         msg = 'BeginSnapshot {}'.format(node_id)
         sendMessage('master', 'observer', msg)
-        # TODO block
+
+        response = receiveMessage('observer', 'master')
+        if (response != 'Ack'):
+            raise RuntimeError('Expected \'Ack\', received {}'.format(response))
+
+        receive(node_id, send_id='observer')
 
     def collectState(self):
         msg = 'CollectState'
         sendMessage('master', 'observer', msg)
-        # TODO block
+
+        response = receiveMessage('observer', 'master')
+        if (response != 'Ack'):
+            raise RuntimeError('Expected \'Ack\', received {}'.format(response))
 
     def printSnapshot(self):
         msg = 'PrintSnapshot'
         sendMessage('master', 'observer', msg)
-        # TODO block
+
+        response = receiveMessage('observer', 'master')
+        if (response != 'Ack'):
+            raise RuntimeError('Expected \'Ack\', received {}'.format(response))
 
 # startMaster()
 # killAll()
