@@ -1,8 +1,12 @@
+from collections import defaultdict
+
 class Node:
     id = -1
     balance = 0
-    state = 0
-
+    nodeState = 0
+    channelState = defaultdict(lambda: [])
+    receivedToken = False
+    
     def listen():
         while(True):
             message = receiveMessage('master', self.id)
@@ -23,17 +27,10 @@ class Node:
                     self.receive(sender)
             elif command == "ReceiveAll":
                 pass
-            elif command == "snapshot":
-                snapshot()
-            elif command == "collect":
-                collect()
-                pass
 
     def snapshot(self):
         # collect balance state
-        state = balance
-
-        # TODO: collect channel states
+        nodeState = balance
 
         # ack obs
         sendMessage(self.id, 'observer', 'ack')
@@ -71,7 +68,10 @@ class Node:
 
         message = receiveMessage(sender, self.id)
 
-        # print message
+        # collect channel states
+        if receivedToken:
+            channelState[(sender, self.id)].append(message)
+
         print(message)
 
         # ack master
@@ -82,7 +82,8 @@ class Node:
 
         # start computation
         if message == "snapshot":
-            # TODO: snapshot
-            pass
+            snapshot()
+        elif message == 'collect':
+            collect()
         else:
             self.balance = self.balance + int(message)
