@@ -1,5 +1,5 @@
 from collections import defaultdict
-
+import pickle
 class Node:
     id = -1
     balance = 0
@@ -40,7 +40,7 @@ class Node:
     
     def collect(self):
         # send state to obs
-        sendMessages(self.id, 'observer', str(state))
+        sendMessages(self.id, 'observer', pickle.dump((nodeState,channelState)))
         return
 
     def send(self, receiver, val):
