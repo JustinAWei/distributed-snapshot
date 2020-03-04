@@ -1,11 +1,15 @@
 from collections import defaultdict
 import pickle
+from random import choice
+
 class Node:
     id = -1
     balance = 0
     nodeState = 0
-    channelState = defaultdict(lambda: [])
+    channelState = defaultdict(lambda: 0)
     receivedToken = False
+    stopRecording = defaultdict(lambda: False)
+    allNodes = {}
     
     def listen():
         while(True):
@@ -25,28 +29,34 @@ class Node:
                 else:
                     _, sender = message[1:]
                     self.receive(sender)
-            elif command == "ReceiveAll":
-                pass
 
-    def snapshot(self):
+    def startSnapshot(self, sender):
+        self.receivedToken = True
+
         # collect balance state
-        nodeState = balance
+        self.nodeState = self.balance
+
+        # record empty on channel
+        self.channelState[sender] = 0
+        self.stopRecording[sender] = True
 
         # ack obs
         sendMessage(self.id, 'observer', 'ack')
 
-        # TODO: send snapshot to neighbors
+        # send snapshot to neighbors
+        for node_id in self.allNodes.keys():
+            sendMessage(self.id, node_id, 'snapshot')
         return
     
     def collect(self):
         # send state to obs
-        sendMessages(self.id, 'observer', pickle.dump((nodeState,channelState)))
+        sendMessage(self.id, 'observer', pickle.dump((self.nodeState, self.channelState)))
         return
 
     def send(self, receiver, val):
-        print("send: sender={0} receiver={1} val={2}\n".format(id, receiver, val))
+        print("send: sender={0} receiver={1} val={2}\n".format(self.id, receiver, val))
         # error check
-        if val > balance:
+        if val > self.balance:
             print("ERR_SEND")
             print("not enough money. current balance: {}".format(self.balance))
             return
@@ -60,17 +70,15 @@ class Node:
         sendMessage(self.id, 'master', 'ack')
 
     def receive(self, sender=-1):
-        print("recieve: r={0} s={1}\n".format(id, sender))
+        print("recieve: r={0} s={1}\n".format(self.id, sender))
 
-        # TODO: random sender
-        # if sender == -1:
-        #     sender = random.randint(1,101)
+        # random sender
+        if sender == -1:
+            sender = random.choice(allNodes.keys())
+            # while sender == self.id:
+            #     sender = random.choice(allNodes.keys())
 
         message = receiveMessage(sender, self.id)
-
-        # collect channel states
-        if receivedToken:
-            channelState[(sender, self.id)].append(message)
 
         print(message)
 
@@ -82,8 +90,13 @@ class Node:
 
         # start computation
         if message == "snapshot":
-            snapshot()
+            if not receivedToken: startSnapshot(sender)
+            else: self.stopRecording[sender] = True
         elif message == 'collect':
             collect()
         else:
             self.balance = self.balance + int(message)
+
+            # collect channel states
+            if receivedToken and not self.stopRecording[sender]:
+                self.channelState[sender] = self.channelState[sender] + int(message)
