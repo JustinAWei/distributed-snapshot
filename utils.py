@@ -6,6 +6,7 @@ def pipeName(s, r):
 def sendMessage(sender, receiver, msg, nonblocking=False):
     """Write message to pipe (nonblocking)."""
     # TODO - do we need newline within msg?
+    if sender == receiver: return
     msg = msg.encode()
     flags = os.O_WRONLY | (nonblocking * os.O_NONBLOCK)
 
@@ -15,5 +16,6 @@ def sendMessage(sender, receiver, msg, nonblocking=False):
 
 def receiveMessage(sender, receiver):
     """Block until message is read from pipe."""
+    if sender == receiver: return
     with open(pipeName(sender, receiver), 'r') as pipe:
         return pipe.readline()
