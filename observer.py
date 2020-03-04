@@ -2,6 +2,7 @@ from utils import pipeName, sendMessage, receiveMessage
 
 class Observer:
     state = {}
+    allNodes = {}
 
     def beginSnapshot(self, node_id):
         sendMessage('observer', node_id, 'snapshot')
@@ -10,11 +11,9 @@ class Observer:
             raise RuntimeError('Expected \'Ack\', received {}'.format(response))
     
     def collectState(self):
-        # TODO: get all nodes?
-        all_node = range(5)
-        for node_id in all_nodes:
+        for node_id in self.allNodes.keys():
             sendMessage('observer', node_id, 'collect')
-            state[node_id] = receiveMessage(node_id, 'observer')
+            self.state[node_id] = receiveMessage(node_id, 'observer')
 
     def printSnapshot(self):
-        print(state)
+        print(self.state)

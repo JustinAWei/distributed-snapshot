@@ -50,7 +50,7 @@ class Node:
     
     def collect(self):
         # send state to obs
-        sendMessage(self.id, 'observer', pickle.dump((self.nodeState, self.channelState)))
+        sendMessage(self.id, 'observer', (self.nodeState, self.channelState))
         return
 
     def send(self, receiver, val):
