@@ -1,19 +1,27 @@
 import os
+import pickle
 
 def pipeName(s, r):
     return './pipes/{0}-{1}'.format(s, r)
 
-def sendMessage(sender, receiver, msg, nonblocking=False):
-    """Write message to pipe (nonblocking)."""
-    # TODO - do we need newline within msg?
-    msg = msg.encode()
-    flags = os.O_WRONLY | (nonblocking * os.O_NONBLOCK)
+class Pipes:
+    def __init__(self):
+        self.pipes = dict()
 
-    pipe = os.open(pipeName(sender, receiver), flags)
-    os.write(pipe, msg)
-    os.close(pipe)
+    def createPipe(self, sender, receiver, write, blocking=True):
+        flags = os.O_RDWR
+        mode = 'wb' if write else 'rb'
+        if not blocking:
+            flags = flags | os.O_NONBLOCK
 
-def receiveMessage(sender, receiver):
-    """Block until message is read from pipe."""
-    with open(pipeName(sender, receiver), 'r') as pipe:
-        return pipe.readline()
+        name = pipeName(sender, receiver)
+        fd = os.open(name, flags)
+        self.pipes[name] = os.fdopen(fd, mode, buffering=0)
+
+    def sendMessage(self, sender, receiver, msg):
+        pipe = self.pipes[pipeName(sender, receiver)]
+        pickle.dump(msg, pipe)
+
+    def receiveMessage(self, sender, receiver):
+        pipe = self.pipes[pipeName(sender, receiver)]
+        return pickle.load(pipe)

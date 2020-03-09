@@ -4,7 +4,7 @@ import os
 import shutil
 import sys
 
-from utils import pipeName, sendMessage, receiveMessage
+from utils import pipeName, Pipes
 
 
 class Node:
@@ -75,20 +75,27 @@ class Node:
 
 
 def _dummyChild_(node_id, money):
+    pipes = Pipes()
+    pipes.createPipe('master', node_id, write=False)
+    pipes.createPipe(node_id, 'master', write=True)
     print('Created node with id {0}, money {1}'.format(node_id, money))
     while True:
-        print('DUMMY RECV: ' + receiveMessage('master', node_id))
-        sendMessage(node_id, 'master', 'Ack', nonblocking=True)
+        print('DUMMY RECV: ' + pipes.receiveMessage('master', node_id))
+        pipes.sendMessage(node_id, 'master', 'Ack')
 
 def _dummyObserver_():
+    pipes = Pipes()
+    pipes.createPipe('master', 'observer', write=False)
+    pipes.createPipe('observer', 'master', write=True)
     print("hi i'm observer")
     while True:
-        print('OBSERVER RECV: ' + receiveMessage('master', 'observer'))
-        sendMessage('observer', 'master', 'Ack', nonblocking=True)
+        print('OBSERVER RECV: ' + pipes.receiveMessage('master', 'observer'))
+        pipes.sendMessage('observer', 'master', 'Ack')
 
 class Master:
     def __init__(self):
         self.nodes = dict()
+        self.pipes = Pipes()
         self.observer = None
 
     def startMaster(self):
@@ -99,6 +106,8 @@ class Master:
         # Create pipe between master and observer
         os.mkfifo(pipeName('master', 'observer'))
         os.mkfifo(pipeName('observer', 'master'))
+        self.pipes.createPipe('master', 'observer', write=True, blocking=True)
+        self.pipes.createPipe('observer', 'master', write=False, blocking=True)
 
         # Start observer
         self.observer = Process(target=_dummyObserver_)
@@ -115,6 +124,8 @@ class Master:
         # Create pipe between master and node
         os.mkfifo(pipeName('master', node_id))
         os.mkfifo(pipeName(node_id, 'master'))
+        self.pipes.createPipe('master', node_id, write=True, blocking=True)
+        self.pipes.createPipe(node_id, 'master', write=False, blocking=True)
 
         # Create pipe from observer to node
         os.mkfifo(pipeName('observer', node_id))
@@ -131,17 +142,17 @@ class Master:
 
     def send(self, send_id, recv_id, val):
         msg = 'Send {} {}'.format(recv_id, val)
-        sendMessage('master', send_id, msg)
+        self.pipes.sendMessage('master', send_id, msg)
 
-        response = receiveMessage(send_id, 'master')
+        response = self.pipes.receiveMessage(send_id, 'master')
         if (response != 'Ack'):
             raise RuntimeError('Expected \'Ack\', received {}'.format(response))
 
     def receive(self, recv_id, send_id=''):
         msg = 'Receive {}'.format(send_id)
-        sendMessage('master', recv_id, msg)
+        self.pipes.sendMessage('master', recv_id, msg)
 
-        response = receiveMessage(recv_id, 'master')
+        response = self.pipes.receiveMessage(recv_id, 'master')
         if (response != 'Ack'):
             raise RuntimeError('Expected \'Ack\', received {}'.format(response))
 
@@ -151,9 +162,9 @@ class Master:
 
     def beginSnapshot(self, node_id):
         msg = 'BeginSnapshot {}'.format(node_id)
-        sendMessage('master', 'observer', msg)
+        self.pipes.sendMessage('master', 'observer', msg)
 
-        response = receiveMessage('observer', 'master')
+        response = self.pipes.receiveMessage('observer', 'master')
         if (response != 'Ack'):
             raise RuntimeError('Expected \'Ack\', received {}'.format(response))
 
@@ -161,17 +172,17 @@ class Master:
 
     def collectState(self):
         msg = 'CollectState'
-        sendMessage('master', 'observer', msg)
+        self.pipes.sendMessage('master', 'observer', msg)
 
-        response = receiveMessage('observer', 'master')
+        response = self.pipes.receiveMessage('observer', 'master')
         if (response != 'Ack'):
             raise RuntimeError('Expected \'Ack\', received {}'.format(response))
 
     def printSnapshot(self):
         msg = 'PrintSnapshot'
-        sendMessage('master', 'observer', msg)
+        self.pipes.sendMessage('master', 'observer', msg)
 
-        response = receiveMessage('observer', 'master')
+        response = self.pipes.receiveMessage('observer', 'master')
         if (response != 'Ack'):
             raise RuntimeError('Expected \'Ack\', received {}'.format(response))
 
