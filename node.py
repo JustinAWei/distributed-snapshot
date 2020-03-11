@@ -1,34 +1,50 @@
 from collections import defaultdict
 import pickle
-from random import choice
+import random
+
+from utils import pipeName, Pipes
 
 class Node:
-    id = -1
-    balance = 0
-    nodeState = 0
-    channelState = defaultdict(lambda: 0)
-    receivedToken = False
-    stopRecording = defaultdict(lambda: False)
-    allNodes = {}
+
+    def __init__(self, node_id, balance):
+        self.id = node_id
+        self.balance = balance
+
+        self.nodeState = 0
+        self.channelState = defaultdict(lambda: 0)
+        self.receivedToken = False
+        self.stopRecording = defaultdict(lambda: False)
+        self.allNodes = {}
+
+        self.pipes = Pipes()
+        self.pipes.createPipe(self.id, 'master', write=True, blocking=False)
+        self.pipes.createPipe('master', self.id, write=False, blocking=True)
+
+        self.pipes.createPipe(self.id, 'observer', write=True, blocking=False)
+        self.pipes.createPipe('observer', self.id, write=False, blocking=False)
     
-    def listen():
+    def listen(self):
         while(True):
-            message = receiveMessage('master', self.id)
+            message = self.pipes.receiveMessage('master', self.id)
             
             # rid of newline
-            message = message[:-1]
-            message = message.split(' ')
+            message = message.strip().split(' ')
             command = message[0]
             if command == "Send":
-                _, receiver, val = message[1:]
+                _, receiver, val = message
                 self.send(receiver, int(val))
             elif command == "Receive":
                 # only receiver is specified
-                if len(message[1:]) == 1:
+                if len(message) == 1:
                     self.receive()
                 else:
-                    _, sender = message[1:]
+                    sender = message[1]
                     self.receive(sender)
+            elif command == "CreateNode":
+                self.pipes.createPipe(self.id, message[1], write=True, blocking=False)
+                self.pipes.createPipe(message[1], self.id, write=False, blocking=False)
+                self.pipes.sendMessage(self.id, 'master', 'ack')
+
 
     def startSnapshot(self, sender):
         self.receivedToken = True
@@ -41,16 +57,16 @@ class Node:
         self.stopRecording[sender] = True
 
         # ack obs
-        sendMessage(self.id, 'observer', 'ack')
+        self.pipes.sendMessage(self.id, 'observer', 'ack')
 
         # send snapshot to neighbors
         for node_id in self.allNodes.keys():
-            sendMessage(self.id, node_id, 'snapshot')
+            self.pipes.sendMessage(self.id, node_id, 'snapshot')
         return
     
     def collect(self):
         # send state to obs
-        sendMessage(self.id, 'observer', (self.nodeState, self.channelState))
+        self.pipes.sendMessage(self.id, 'observer', (self.nodeState, self.channelState))
         return
 
     def send(self, receiver, val):
@@ -63,11 +79,11 @@ class Node:
         else:
             # send the money
             # append sent val to channel
-            sendMessage(self.id, receiver, str(val))
+            self.pipes.sendMessage(self.id, receiver, str(val))
             self.balance = self.balance - val
 
         # send a ack to master
-        sendMessage(self.id, 'master', 'ack')
+        self.pipes.sendMessage(self.id, 'master', 'ack')
 
     def receive(self, sender=-1):
         print("recieve: r={0} s={1}\n".format(self.id, sender))
@@ -78,15 +94,15 @@ class Node:
             # while sender == self.id:
             #     sender = random.choice(allNodes.keys())
 
-        message = receiveMessage(sender, self.id)
+        message = self.pipes.receiveMessage(sender, self.id)
 
         print(message)
 
         # ack master
-        sendMessage(self.id, 'master', 'ack')
+        self.pipes.sendMessage(self.id, 'master', 'ack')
 
         # rid of newline
-        message = message[:-1]
+        message = message.strip()
 
         # start computation
         if message == "snapshot":

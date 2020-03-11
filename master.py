@@ -3,8 +3,8 @@ from multiprocessing import Process
 import os
 import shutil
 import sys
-import node
 
+from node import Node
 from utils import pipeName, Pipes
 
 def _dummyChild_(node_id, money):
@@ -14,7 +14,7 @@ def _dummyChild_(node_id, money):
     print('Created node with id {0}, money {1}'.format(node_id, money))
     while True:
         print('DUMMY RECV: ' + pipes.receiveMessage('master', node_id))
-        pipes.sendMessage(node_id, 'master', 'Ack')
+        pipes.sendMessage(node_id, 'master', 'ack')
 
 def _dummyObserver_():
     pipes = Pipes()
@@ -23,7 +23,14 @@ def _dummyObserver_():
     print("hi i'm observer")
     while True:
         print('OBSERVER RECV: ' + pipes.receiveMessage('master', 'observer'))
-        pipes.sendMessage('observer', 'master', 'Ack')
+        pipes.sendMessage('observer', 'master', 'ack')
+
+def createNode(node_id, money):
+    n = Node(node_id, money)
+    n.listen()
+
+def createObserver():
+    pass
 
 class Master:
     def __init__(self):
@@ -62,32 +69,48 @@ class Master:
 
         # Create pipe from observer to node
         os.mkfifo(pipeName('observer', node_id))
+        os.mkfifo(pipeName(node_id, 'observer')) # TODO not needed but need to change createPipe to be asymmetric
+
+        # Start process
+        p = Process(target=createNode, args=(node_id, money))
+        p.start()
 
         # Create inter-node pipes
-        for neighbor_id in range(node_id):
+        for neighbor_id in self.nodes.keys():
             os.mkfifo(pipeName(node_id, neighbor_id))
             os.mkfifo(pipeName(neighbor_id, node_id))
 
-        # Start process
-        p = Process(target=_dummyChild_, args=(node_id, money))
-        p.start()
-        self.nodes[id] = p
+            msg = 'CreateNode {}'.format(node_id)
+            self.pipes.sendMessage('master', neighbor_id, msg)
+
+            response = self.pipes.receiveMessage(neighbor_id, 'master')
+            if (response != 'ack'):
+                raise RuntimeError('Expected \'ack\', received {}'.format(response))
+
+            msg = 'CreateNode {}'.format(neighbor_id)
+            self.pipes.sendMessage('master', node_id, msg)
+
+            response = self.pipes.receiveMessage(node_id, 'master')
+            if (response != 'ack'):
+                raise RuntimeError('Expected \'ack\', received {}'.format(response))
+
+        self.nodes[node_id] = p
 
     def send(self, send_id, recv_id, val):
         msg = 'Send {} {}'.format(recv_id, val)
         self.pipes.sendMessage('master', send_id, msg)
 
         response = self.pipes.receiveMessage(send_id, 'master')
-        if (response != 'Ack'):
-            raise RuntimeError('Expected \'Ack\', received {}'.format(response))
+        if (response != 'ack'):
+            raise RuntimeError('Expected \'ack\', received {}'.format(response))
 
     def receive(self, recv_id, send_id=''):
         msg = 'Receive {}'.format(send_id)
         self.pipes.sendMessage('master', recv_id, msg)
 
         response = self.pipes.receiveMessage(recv_id, 'master')
-        if (response != 'Ack'):
-            raise RuntimeError('Expected \'Ack\', received {}'.format(response))
+        if (response != 'ack'):
+            raise RuntimeError('Expected \'ack\', received {}'.format(response))
 
     def receiveAll(self):
         # TODO implement
@@ -98,8 +121,8 @@ class Master:
         self.pipes.sendMessage('master', 'observer', msg)
 
         response = self.pipes.receiveMessage('observer', 'master')
-        if (response != 'Ack'):
-            raise RuntimeError('Expected \'Ack\', received {}'.format(response))
+        if (response != 'ack'):
+            raise RuntimeError('Expected \'ack\', received {}'.format(response))
 
         receive(node_id, send_id='observer')
 
@@ -108,16 +131,16 @@ class Master:
         self.pipes.sendMessage('master', 'observer', msg)
 
         response = self.pipes.receiveMessage('observer', 'master')
-        if (response != 'Ack'):
-            raise RuntimeError('Expected \'Ack\', received {}'.format(response))
+        if (response != 'ack'):
+            raise RuntimeError('Expected \'ack\', received {}'.format(response))
 
     def printSnapshot(self):
         msg = 'PrintSnapshot'
         self.pipes.sendMessage('master', 'observer', msg)
 
         response = self.pipes.receiveMessage('observer', 'master')
-        if (response != 'Ack'):
-            raise RuntimeError('Expected \'Ack\', received {}'.format(response))
+        if (response != 'ack'):
+            raise RuntimeError('Expected \'ack\', received {}'.format(response))
 
 def run(master):
     for line in fileinput.input():
