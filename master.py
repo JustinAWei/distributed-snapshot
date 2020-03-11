@@ -105,8 +105,12 @@ class Master:
             raise RuntimeError('Expected \'ack\', received {}'.format(response))
 
     def receiveAll(self):
-        # TODO implement
-        return
+        msg = 'ReceiveAll'
+        for node_id in sorted(self.nodes.keys()):
+            self.pipes.sendMessage('master', node_id, msg)
+            response = self.pipes.receiveMessage(node_id, 'master')
+            if (response != 'ack'):
+                raise RuntimeError('Expected \'ack\', received {}'.format(response))
 
     def beginSnapshot(self, node_id):
         msg = 'BeginSnapshot {}'.format(node_id)
@@ -123,11 +127,10 @@ class Master:
         self.pipes.sendMessage('master', 'observer', msg)
 
         # TODO sort?
-        for node_id in self.nodes.keys():
+        for node_id in sorted(self.nodes.keys()):
             response = self.pipes.receiveMessage('observer', 'master')
             if (response != f'ack {node_id}'):
                 raise RuntimeError('Expected \'ack {}\', received {}'.format(node_id, response))
-
             self.receive(node_id, send_id='observer')
 
         response = self.pipes.receiveMessage('observer', 'master')
@@ -144,7 +147,6 @@ class Master:
 
 def run(master):
     for line in fileinput.input():
-        print(f'line: {line}')
         args = line.split()
         cmd = args[0]
         for idx in range(1, len(args)):

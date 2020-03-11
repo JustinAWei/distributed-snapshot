@@ -24,4 +24,7 @@ class Pipes:
 
     def receiveMessage(self, sender, receiver):
         pipe = self.pipes[pipeName(sender, receiver)]
-        return pickle.load(pipe)
+        try:
+            return pickle.load(pipe)
+        except TypeError:
+            return None
