@@ -5,31 +5,16 @@ import shutil
 import sys
 
 from node import Node
+from observer import Observer
 from utils import pipeName, Pipes
-
-def _dummyChild_(node_id, money):
-    pipes = Pipes()
-    pipes.createPipe('master', node_id, write=False)
-    pipes.createPipe(node_id, 'master', write=True)
-    print('Created node with id {0}, money {1}'.format(node_id, money))
-    while True:
-        print('DUMMY RECV: ' + pipes.receiveMessage('master', node_id))
-        pipes.sendMessage(node_id, 'master', 'ack')
-
-def _dummyObserver_():
-    pipes = Pipes()
-    pipes.createPipe('master', 'observer', write=False)
-    pipes.createPipe('observer', 'master', write=True)
-    print("hi i'm observer")
-    while True:
-        print('OBSERVER RECV: ' + pipes.receiveMessage('master', 'observer'))
-        pipes.sendMessage('observer', 'master', 'ack')
 
 def createNode(node_id, money):
     n = Node(node_id, money)
     n.listen()
 
 def createObserver():
+    obs = Observer()
+    obs.listen()
     pass
 
 class Master:
@@ -50,7 +35,7 @@ class Master:
         self.pipes.createPipe('observer', 'master', write=False, blocking=True)
 
         # Start observer
-        self.observer = Process(target=_dummyObserver_)
+        self.observer = Process(target=createObserver)
         self.observer.start()
 
     def killAll(self):
@@ -76,6 +61,13 @@ class Master:
         p.start()
 
         # Create inter-node pipes
+        msg = 'CreateNode {}'.format(node_id)
+        self.pipes.sendMessage('master', 'observer', msg)
+
+        response = self.pipes.receiveMessage('observer', 'master')
+        if (response != 'ack'):
+            raise RuntimeError('Expected \'ack\', received {}'.format(response))
+
         for neighbor_id in self.nodes.keys():
             os.mkfifo(pipeName(node_id, neighbor_id))
             os.mkfifo(pipeName(neighbor_id, node_id))
@@ -124,11 +116,19 @@ class Master:
         if (response != 'ack'):
             raise RuntimeError('Expected \'ack\', received {}'.format(response))
 
-        receive(node_id, send_id='observer')
+        self.receive(node_id, send_id='observer')
 
     def collectState(self):
         msg = 'CollectState'
         self.pipes.sendMessage('master', 'observer', msg)
+
+        # TODO sort?
+        for node_id in self.nodes.keys():
+            response = self.pipes.receiveMessage('observer', 'master')
+            if (response != f'ack {node_id}'):
+                raise RuntimeError('Expected \'ack {}\', received {}'.format(node_id, response))
+
+            self.receive(node_id, send_id='observer')
 
         response = self.pipes.receiveMessage('observer', 'master')
         if (response != 'ack'):
@@ -144,6 +144,7 @@ class Master:
 
 def run(master):
     for line in fileinput.input():
+        print(f'line: {line}')
         args = line.split()
         cmd = args[0]
         for idx in range(1, len(args)):

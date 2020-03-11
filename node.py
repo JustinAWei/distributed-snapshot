@@ -11,9 +11,9 @@ class Node:
         self.balance = balance
 
         self.nodeState = 0
-        self.channelState = defaultdict(lambda: 0)
+        self.channelState = defaultdict(int)
         self.receivedToken = False
-        self.stopRecording = defaultdict(lambda: False)
+        self.stopRecording = defaultdict(bool)
         self.allNodes = {}
 
         self.pipes = Pipes()
@@ -56,18 +56,13 @@ class Node:
         self.channelState[sender] = 0
         self.stopRecording[sender] = True
 
-        # ack obs
-        self.pipes.sendMessage(self.id, 'observer', 'ack')
-
         # send snapshot to neighbors
         for node_id in self.allNodes.keys():
             self.pipes.sendMessage(self.id, node_id, 'snapshot')
-        return
     
     def collect(self):
         # send state to obs
         self.pipes.sendMessage(self.id, 'observer', (self.nodeState, self.channelState))
-        return
 
     def send(self, receiver, val):
         print("send: sender={0} receiver={1} val={2}\n".format(self.id, receiver, val))
@@ -106,13 +101,13 @@ class Node:
 
         # start computation
         if message == "snapshot":
-            if not receivedToken: startSnapshot(sender)
+            if not self.receivedToken: self.startSnapshot(sender)
             else: self.stopRecording[sender] = True
         elif message == 'collect':
-            collect()
+            self.collect()
         else:
             self.balance = self.balance + int(message)
 
             # collect channel states
-            if receivedToken and not self.stopRecording[sender]:
+            if self.receivedToken and not self.stopRecording[sender]:
                 self.channelState[sender] = self.channelState[sender] + int(message)
