@@ -46,7 +46,9 @@ class Node:
                     sender = message[1]
                     self.receive(sender)
             elif command == "ReceiveAll":
-                self.receiveAll()
+                received = self.receiveAll()
+                self.pipes.sendMessage(self.id, 'master', f'ack {received}')
+                continue
             elif command == "CreateNode":
                 self.node_ids.append(message[1])
                 self.pipes.createPipe(self.id, message[1], write=True, blocking=False)
@@ -74,6 +76,12 @@ class Node:
         # send state to obs
         self.pipes.sendMessage(self.id, 'observer', (self.nodeState, self.channelState))
 
+        # reset snapshot state and progress
+        self.nodeState = 0
+        self.channelState = defaultdict(int)
+        self.receivedToken = False
+        self.stopRecording = defaultdict(bool)
+
     def send(self, receiver, val):
         # error check
         if val > self.balance:
@@ -86,8 +94,10 @@ class Node:
             self.balance = self.balance - val
 
     def receiveAll(self):
+        received = False
         while self.receive(has_output=False):
-            pass
+            received = True
+        return received
 
     def receive(self, sender=-1, has_output=True):
         output = None

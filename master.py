@@ -106,11 +106,17 @@ class Master:
 
     def receiveAll(self):
         msg = 'ReceiveAll'
-        for node_id in sorted(self.nodes.keys()):
-            self.pipes.sendMessage('master', node_id, msg)
-            response = self.pipes.receiveMessage(node_id, 'master')
-            if (response != 'ack'):
-                raise RuntimeError('Expected \'ack\', received {}'.format(response))
+        received = True
+        while received:
+            received = False
+            for node_id in sorted(self.nodes.keys()):
+                self.pipes.sendMessage('master', node_id, msg)
+                response = self.pipes.receiveMessage(node_id, 'master')
+
+                if ('ack' not in response):
+                    raise RuntimeError('Expected \'ack\', received {}'.format(response))
+                if 'True' in response:
+                    received = True
 
     def beginSnapshot(self, node_id):
         msg = 'BeginSnapshot {}'.format(node_id)
